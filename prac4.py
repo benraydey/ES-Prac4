@@ -6,6 +6,7 @@
 import RPi.GPIO as GPIO
 import time
 from threading import Timer
+from datetime import datetime
 
 #setup GPIO pin selection method
 GPIO.setmode(GPIO.BOARD)
@@ -17,9 +18,9 @@ stop = 35
 display = 37
 
 #setup variables for the program operation
-isPrinting = 0                  #is the progam printing values, initialized to false as we will start printing in the main loop
-frequency = 5                   #frequnecy of printing
-data={1,2,3}                    #dummy data varible (will need to implement a 2D array or something similar)
+isPrinting = 0                  	#is the progam printing values, initialized to false as we will start printing in the main loop
+frequency = 3                   	#frequnecy of printing
+data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
 global t
 
 #setup GPIO input pins
@@ -40,11 +41,18 @@ def stop_callback(pin):
 
 def display_callback(pin):
         print("Display Callback")
+#Will become display function
+#        for x in data:
+#                print('{:8d} {:8d} {:2.1f}V {:2d} {:2d}%'.format(x[0],x[1],x[2],x[3],x[4]))
 
 def printing():
         global data
-        for x in data:
-                print(x, "<-") #, ", ") #, end="")
+        x = data[0]
+        #use once have a function to get data
+	#print('{:8d} {:8d} {:2.1f}V {:2d} {:2d}%'.format(x[0],x[1],x[2],x[3],x[4]))
+
+	#using this print to get formatting correct
+	print('{:%H:%M:%S} {:8d} {:2.1f}V {:2d} {:2d}%'.format(datetime.now().time(),x[1],x[2],x[3],x[4]))
         global t
 	t = Timer(frequency,printing)
 	t.start()
@@ -62,12 +70,12 @@ print("Setup done. Entering loop")
 try:
         while True:
                 if isPrinting != 1:	#if not printing then start printing
-			print("Printing started")
+			print("Time   Timer  Pot  Temp  Light")
 			printing()
 			isPrinting =1
 
 		#Placeholder for later implementation
-                print("Do something here in loop?")
+                #print("Do something here in loop?")
                 time.sleep(5)
 except KeyboardInterrupt:
         GPIO.cleanup()  #cleanup GPIO on keyboard exit
