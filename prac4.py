@@ -36,6 +36,7 @@ frequency = 3                   	#frequnecy of printing
 data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
 haveStartTime = 0			#(boolean) has startTime been obtained
 rec_num = 0          		        #record number, ranges from 0 to 4. Initialized to 0. Increments after each adc reading
+rec_num_max = 0				#maximum value rec_num reached
 
 #global variables
 global t				#timer variable
@@ -58,12 +59,17 @@ mcp = Adafruit_MCP3008.MCP3008(clk=SPICLK, cs=SPICS, mosi=SPIMOSI, miso=SPIMISO)
 
 #function declarations
 def reset_callback(pin):
+	reset_func()
+
+def reset_func():
 	#get global variables
 	global frequency
 	global data
 	global haveStartTime
 	global t
 	global rec_num
+	global rec_num_max
+	global isPrinting
 
 	#reset variables
 	t.cancel()				#stop timer
@@ -71,16 +77,21 @@ def reset_callback(pin):
 	data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
 	haveStartTime = 0
 	rec_num = 0
+	rec_num_max = 0
+	isPrinting = 1
 
 	#clear the console and restart printing
 	print(chr(27)+"[2J")
-	print("Reset Callback")
+	#print("Reset Callback")
 	print('{:8s} {:8s} {:4s} {:s} {:s}'.format("Time","Timer","Pot","Temp","Light"))
 	read_data()
 
 def frequency_pin_callback(pin):
+	#print("Frequency Callback")
+	frequency_func()
+
+def frequency_func():
 	#this function will only change the frequency after the next value is recorded/printed
-	print("Frequency Callback")
 	global frequency
 	if frequency == 0.5:
 		frequency = 1
@@ -91,7 +102,10 @@ def frequency_pin_callback(pin):
 
 
 def stop_callback(pin):
-	print("Stop Callback")
+	#print("Stop Callback")
+	stop_func()
+
+def stop_func():
 	global t
 	global isPrinting
 
@@ -103,13 +117,25 @@ def stop_callback(pin):
 		read_data()
 
 def display_callback(pin):
-        print("Display Callback")
+        #print("Display Callback")
+	display_func()
+
+def display_func():
 	global data
-	for i in range(rec_num,len(data)):
+
+	#debugging code
+	#print('RN: {}'.format(rec_num))
+	#print('RNM: {}'.format(rec_num_max))
+	#print('length: {}'.format(len(data)))
+	#print('{}-{}'.format(rec_num,min(len(data),rec_num_max)))
+	#print('0-{}'.format(rec_num))
+
+	#print previous 5 data entries
+	for i in range(rec_num,min(len(data),rec_num_max)):
 		x = data[i]
 		print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
-	for i in range(rec_num):
-		x = data[i]
+	for j in range(rec_num): #min(rec_num_max+1,5)):
+		x = data[j]
 		print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
 
 	#legacy
@@ -150,6 +176,7 @@ def printing():
 
 def read_data():
     global rec_num
+    global rec_num_max
     global data
     global startTime
     global haveStartTime
@@ -172,6 +199,7 @@ def read_data():
     data[rec_num][4] = conv_10bit_to_perc(mcp.read_adc(2))
 
     rec_num += 1
+    rec_num_max = max(rec_num,rec_num_max)
     if rec_num == 5:
         rec_num = 0
 
@@ -203,7 +231,7 @@ GPIO.add_event_detect(display, GPIO.FALLING, bouncetime=200, callback=display_ca
 #print(len(data))
 
 #put into program loop
-print("Setup done. Entering loop")
+#print("Setup done. Entering loop")
 try:
         while True:
 
