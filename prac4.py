@@ -86,7 +86,7 @@ def read_data():
     
     #read in adc values and convert to appropriate units
     data[rec_num][2] = conv_10bit_to_3V3(mcp.read_adc(0))
-    data[rec_num][3] = conv_to_deg_celsius(mcp.read_adc(1))
+    data[rec_num][3] = conv_10bit_to_deg_celsius(mcp.read_adc(1))
     data[rec_num][4] = conv_10bit_to_perc(mcp.read_adc(2))
     
     rec_num += 1
@@ -97,10 +97,10 @@ def conv_10bit_to_3V3(val):
 #converts a 10 bit ADC value to a voltage in range 0 - 3.3V
     return val*3.3/1023
 
-def conv_10bit_to_deg_celsius(val)
+def conv_10bit_to_deg_celsius(val):
 #converts a 10 bit ADC value to a temperature in degrees Celsius
 
-    return val
+    return ( (val*3.3/1023) - 0.5 ) / 0.01    #Equation from MCP9700 datasheet
 
 def conv_10bit_to_perc(val):
 #converts a 10 bit ADC value to a percentage
@@ -118,7 +118,7 @@ GPIO.add_event_detect(display, GPIO.FALLING, bouncetime=200, callback=display_ca
 print("Setup done. Entering loop")
 try:
         while True:
-                read_data()
+                read_data()    #Read data from ADC
                 if isPrinting != 1:	#if not printing then start printing
                     print("Time   Timer  Pot  Temp  Light")
                     printing()
