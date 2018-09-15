@@ -31,9 +31,9 @@ SPICS = 8
 #setup variables for the program operation
 
 isPrinting = 0                  	#is the progam printing values, initialized to false as we will start printing in the main loop
-frequency = 3                   	#frequnecy of printing
-data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
-values = [0]*8			# array for storing ADC values from MCP3008
+frequency = 3                    #frequnecy of printing
+data=[[0]*5 for i in range(5)]         #5 by 5 2D data variable
+rec_num = 0                      #record number, ranges from 0 to 4. Initialized to 0. Increments after each adc reading 
 global t
 
 
@@ -76,10 +76,35 @@ def printing():
 	#print('{:8d} {:8d} {:2.1f}V {:2d} {:2d}%'.format(x[0],x[1],x[2],x[3],x[4]))
 
 	#using this print to get formatting correct
-	print('{:%H:%M:%S} {:8d} {:2.1f}V {:2d} {:2d}%'.format(datetime.now().time(),x[1],x[2],x[3],x[4]))
+        print('{:%H:%M:%S} {:8d} {:2.1f}V {:2.0f}C {:2.0f}%'.format(datetime.now().time(),x[1],x[2],x[3],x[4]))
         global t
-	t = Timer(frequency,printing)
-	t.start()
+        t = Timer(frequency,printing)
+        t.start()
+        
+def read_data():
+    global rec_num
+    
+    #read in adc values and convert to appropriate units
+    data[rec_num][2] = conv_10bit_to_3V3(mcp.read_adc(0))
+    data[rec_num][3] = conv_to_deg_celsius(mcp.read_adc(1))
+    data[rec_num][4] = conv_10bit_to_perc(mcp.read_adc(2))
+    
+    rec_num += 1
+    if rec_num == 5:
+        rec_num = 0
+
+def conv_10bit_to_3V3(val):
+#converts a 10 bit ADC value to a voltage in range 0 - 3.3V
+    return val*3.3/1023
+
+def conv_10bit_to_deg_celsius(val)
+#converts a 10 bit ADC value to a temperature in degrees Celsius
+
+    return val
+
+def conv_10bit_to_perc(val):
+#converts a 10 bit ADC value to a percentage
+    return val*100/1023
 
 #setup edge detection
 GPIO.add_event_detect(reset, GPIO.FALLING, bouncetime=200, callback=reset_callback)
@@ -93,17 +118,19 @@ GPIO.add_event_detect(display, GPIO.FALLING, bouncetime=200, callback=display_ca
 print("Setup done. Entering loop")
 try:
         while True:
+                read_data()
                 if isPrinting != 1:	#if not printing then start printing
-			print("Time   Timer  Pot  Temp  Light")
-			printing()
-			isPrinting =1
+                    print("Time   Timer  Pot  Temp  Light")
+                    printing()
+                    isPrinting =1
 
 		#Placeholder for later implementation
                 #print("Do something here in loop?")
-                time.sleep(5)
+                #time.sleep(5)
+                time.sleep(0.5)
 except KeyboardInterrupt:
         GPIO.cleanup()  #cleanup GPIO on keyboard exit
-	t.cancel()
+        t.cancel()
 
 GPIO.cleanup()  #cleanup GPIO on normal exit
 
