@@ -1,33 +1,57 @@
 #Prac 4 python file
 #Commit 1
 
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import RPi.GPIO as GPIO
+import Adafruit_MCP3008
 import time
+import os
 from threading import Timer
 from datetime import datetime
 
+#Disable GPIO ste warnings
+GPIO.setwarnings(False)
+
 #setup GPIO pin selection method
-GPIO.setmode(GPIO.BOARD)
+GPIO.setmode(GPIO.BCM)
 
 #setup pins numbers for the different switches and outputs
-reset = 31
-frequency_pin = 33
-stop = 35
-display = 37
+reset = 6
+frequency_pin = 13
+stop = 19
+display = 26
+
+#setup pin numbers for SPI interface
+SPICLK = 11
+SPIMISO = 9
+SPIMOSI = 10
+SPICS = 8
 
 #setup variables for the program operation
+
 isPrinting = 0                  	#is the progam printing values, initialized to false as we will start printing in the main loop
 frequency = 3                   	#frequnecy of printing
 data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
+values = [0]*8			# array for storing ADC values from MCP3008
 global t
+
 
 #setup GPIO input pins
 GPIO.setup(reset, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(frequency_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(stop, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(display, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+#setup GPIO io pins for SPI interface
+GPIO.setup(SPIMOSI, GPIO.OUT)
+GPIO.setup(SPIMISO, GPIO.IN)
+GPIO.setup(SPICLK, GPIO.OUT)
+GPIO.setup(SPICS, GPIO.OUT)
+
+#setup MCP3008
+mcp = Adafruit_MCP3008.MCP3008(clk=SPICLK, cs=SPICS, mosi=SPIMOSI, miso=SPIMISO)
+
 
 #function declarations
 def reset_callback(pin):
