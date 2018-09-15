@@ -30,16 +30,18 @@ SPIMOSI = 10
 SPICS = 8
 
 #setup variables for the program operation
+
 isInitialPrint = 1			#(boolean) Is the program starting printing for the first time
 isPrinting = 1                  	#(boolean) Is the program printing values
 frequency = 3                   	#frequnecy of printing
 data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
-values = [0]*8			        #array for storing ADC values from MCP3008
 haveStartTime = 0			#(boolean) has startTime been obtained
+
 
 #global variables
 global t				#timer variable
 global startTime			#time of the first reading
+rec_num = 0                      #record number, ranges from 0 to 4. Initialized to 0. Increments after each adc reading
 
 #setup GPIO input pins
 GPIO.setup(reset, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -127,6 +129,7 @@ def printing():
         #should be working, can uncommment once the right values are stored in data
 	#print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0],x[1],x[2],x[3],x[4]))
 
+
 	#was using this code to get formatting correct, can comment out once data has correct values
 	time = datetime.now()
 	timerValue = str(time - startTime)[:7]
@@ -136,6 +139,32 @@ def printing():
 	global t
 	t = Timer(frequency,printing)
 	t.start()
+
+def read_data():
+    global rec_num
+    
+    #read in adc values and convert to appropriate units
+    data[rec_num][2] = conv_10bit_to_3V3(mcp.read_adc(0))
+    data[rec_num][3] = conv_10bit_to_deg_celsius(mcp.read_adc(1))
+    data[rec_num][4] = conv_10bit_to_perc(mcp.read_adc(2))
+    
+    rec_num += 1
+    if rec_num == 5:
+        rec_num = 0
+
+def conv_10bit_to_3V3(val):
+#converts a 10 bit ADC value to a voltage in range 0 - 3.3V
+    return val*3.3/1023
+
+def conv_10bit_to_deg_celsius(val):
+#converts a 10 bit ADC value to a temperature in degrees Celsius
+
+    return ( (val*3.3/1023) - 0.5 ) / 0.01    #Equation from MCP9700 datasheet
+
+def conv_10bit_to_perc(val):
+#converts a 10 bit ADC value to a percentage
+    return val*100/1023
+
 
 #setup edge detection
 GPIO.add_event_detect(reset, GPIO.FALLING, bouncetime=200, callback=reset_callback)
@@ -152,17 +181,21 @@ GPIO.add_event_detect(display, GPIO.FALLING, bouncetime=200, callback=display_ca
 print("Setup done. Entering loop")
 try:
         while True:
-                if isInitialPrint == 1:	#start printing for the first time
-			print('{:8s} {:8s} {:4s} {:s} {:s}'.format("Time","Timer","Pot","Temp","Light"))
-			printing()
-			isInitialPrint = 0
+          
+          read_data()    #Read data from ADC
+          
+          if isInitialPrint == 1:	#start printing for the first time
+            print('{:8s} {:8s} {:4s} {:s} {:s}'.format("Time","Timer","Pot","Temp","Light"))
+            printing()
+            isInitialPrint = 0
 
 		#Placeholder for later implementation
                 #print("Do something here in loop?")
-                time.sleep(5)
+                #time.sleep(5)
+                time.sleep(0.5)
 except KeyboardInterrupt:
         GPIO.cleanup()  #cleanup GPIO on keyboard exit
-	t.cancel()
+        t.cancel()
 
 GPIO.cleanup()  #cleanup GPIO on normal exit
 
