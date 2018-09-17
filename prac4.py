@@ -104,14 +104,12 @@ def stop_func():
 		isPrinting = 0
 	elif isPrinting == 0:
 		isPrinting = 1
-		stop_readings = 0
 
 def display_callback(pin):
         #print("Display Callback")
 	display_func()
 
 def display_func():
-    if isPrinting == 0:
 	global stopped_data
 	global stop_readings
 
@@ -135,7 +133,7 @@ def display_func():
 	#	x = data[i]
 	#	print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
 
-	print(stop_readings)
+	#print(stop_readings)
 	for j in range(stop_readings): #min(rec_num_max+1,5)):
 		x = stopped_data[j]
 		print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
@@ -210,10 +208,11 @@ def read_data():
         	rec_num = 0
     	printing()
     else:
-	print(stop_readings)
+	#print(stop_readings)
 	if stop_readings < 5:
-		print('got in here with stop = {}'.format(stop_readings))
-		stopped_data[stop_readings]= data[rec_num]
+		#print('got in here with stop = {}'.format(stop_readings))
+		for i in range (5):
+			stopped_data[stop_readings][i]= data[rec_num][i]
         	stop_readings += 1
 	rec_num += 1
         rec_num_max = max(rec_num,rec_num_max)
