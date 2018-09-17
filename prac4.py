@@ -32,11 +32,14 @@ SPICS = 8
 #setup variables for the program operation
 isInitialPrint = 1			#(boolean) Is the program starting printing for the first time
 isPrinting = 1                  	#(boolean) Is the program printing values
-frequency = 3                   	#frequnecy of printing
+frequency = 0.5                   	#frequnecy of printing
 data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
+stopped_data=[[0]*5 for i in range(5)]  #5 by 5 2D data variable
 haveStartTime = 0			#(boolean) has startTime been obtained
 rec_num = 0          		        #record number, ranges from 0 to 4. Initialized to 0. Increments after each adc reading
 rec_num_max = 0				#maximum value rec_num reached
+max_brightness = 970			#tested with phone flashlight
+stop_readings = 0			#number of readings taken after stop was pressed
 
 #global variables
 global t				#timer variable
@@ -63,28 +66,15 @@ def reset_callback(pin):
 
 def reset_func():
 	#get global variables
-	global frequency
-	global data
 	global haveStartTime
-	global t
-	global rec_num
-	global rec_num_max
-	global isPrinting
 
 	#reset variables
-	t.cancel()				#stop timer
-	frequency = 0.5
-	data=[[0]*5 for i in range(5)]          #5 by 5 2D data variable
 	haveStartTime = 0
-	rec_num = 0
-	rec_num_max = 0
-	isPrinting = 1
 
 	#clear the console and restart printing
 	print(chr(27)+"[2J")
 	#print("Reset Callback")
 	print('{:8s} {:8s} {:4s} {:s} {:s}'.format("Time","Timer","Pot","Temp","Light"))
-	read_data()
 
 def frequency_pin_callback(pin):
 	#print("Frequency Callback")
@@ -106,22 +96,22 @@ def stop_callback(pin):
 	stop_func()
 
 def stop_func():
-	global t
 	global isPrinting
+	global stop_readings
 
 	if isPrinting == 1:
-		t.cancel()
+		stop_readings = 0
 		isPrinting = 0
 	elif isPrinting == 0:
 		isPrinting = 1
-		read_data()
 
 def display_callback(pin):
         #print("Display Callback")
 	display_func()
 
 def display_func():
-	global data
+	global stopped_data
+	global stop_readings
 
 	#debugging code
 	#print('RN: {}'.format(rec_num))
@@ -131,11 +121,21 @@ def display_func():
 	#print('0-{}'.format(rec_num))
 
 	#print previous 5 data entries
-	for i in range(rec_num,min(len(data),rec_num_max)):
-		x = data[i]
-		print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
-	for j in range(rec_num): #min(rec_num_max+1,5)):
-		x = data[j]
+	#for i in range(rec_num,min(len(data),rec_num_max)):
+	#	x = data[i]
+	#	print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
+	#for j in range(rec_num): #min(rec_num_max+1,5)):
+	#	x = data[j]
+	#	print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
+
+	#print first five readings
+	#for i in range(rec_num,min(len(data),rec_num_max)):
+	#	x = data[i]
+	#	print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
+
+	#print(stop_readings)
+	for j in range(stop_readings): #min(rec_num_max+1,5)):
+		x = stopped_data[j]
 		print('{:%H:%M:%S} 0{:7s} {:3.1f}V {:<3d}C {:2d}%'.format(x[0].time(),x[1],x[2],x[3],x[4]))
 
 	#legacy
@@ -180,6 +180,9 @@ def read_data():
     global data
     global startTime
     global haveStartTime
+    global stopped_data
+    global stop_readings
+
 
     #find time
     time = datetime.now()
@@ -198,12 +201,28 @@ def read_data():
     data[rec_num][3] = conv_10bit_to_deg_celsius(mcp.read_adc(1))
     data[rec_num][4] = conv_10bit_to_perc(mcp.read_adc(2))
 
-    rec_num += 1
-    rec_num_max = max(rec_num,rec_num_max)
-    if rec_num == 5:
-        rec_num = 0
+    if isPrinting == 1:
+        rec_num += 1
+        rec_num_max = max(rec_num,rec_num_max)
+        if rec_num == 5:
+        	rec_num = 0
+    	printing()
+    else:
+	#print(stop_readings)
+	if stop_readings < 5:
+		#print('got in here with stop = {}'.format(stop_readings))
+		for i in range (5):
+			stopped_data[stop_readings][i]= data[rec_num][i]
+        	stop_readings += 1
+	rec_num += 1
+        rec_num_max = max(rec_num,rec_num_max)
+        if rec_num == 5:
+            rec_num = 0
 
-    printing()
+	#start the timer again for periodic functioning
+	global t
+	t = Timer(frequency,read_data)
+	t.start()
 
 
 def conv_10bit_to_3V3(val):
@@ -217,7 +236,7 @@ def conv_10bit_to_deg_celsius(val):
 
 def conv_10bit_to_perc(val):
 #converts a 10 bit ADC value to a percentage
-    return int(round(val*100/1023))
+    return int(round(val*100/max_brightness))
 
 #setup edge detection
 GPIO.add_event_detect(reset, GPIO.FALLING, bouncetime=200, callback=reset_callback)
